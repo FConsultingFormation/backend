@@ -1,8 +1,8 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const Thing = require('./models/thing');
 
 const app = express();
-
-const mongoose = require('mongoose');
 
 // Middleware pour parser les requêtes JSON
 app.use(express.json());
@@ -16,67 +16,49 @@ app.use((req, res, next) => {
   next();
 });
 
-// Exemple de route post
-app.post('/api/stuff', (req, res, next) => {
-  const stuff = req.body;
-  console.log(stuff);
-  res.status(201).json({
-    message: 'Objet créé !',
-  });
-  
+// Connexion à MongoDB
+mongoose.connect('mongodb+srv://kokou:fcconsulting@cluster0.ibfgfyh.mongodb.net/nomDeTaDB?retryWrites=true&w=majority&appName=Cluster0')
+  .then(() => console.log('Connexion à MongoDB réussie !'))
+  .catch(err => console.error('Erreur MongoDB :', err));
+
+// Route pour récupérer un objet par ID
+app.get('/api/stuff/:id', (req, res, next) => {
+  Thing.findOne({ _id: req.params.id })
+    .then(thing => res.status(200).json(thing))
+    .catch(error => res.status(404).json({ error }));
 });
-// Exemple de route get
+
+// Route pour récupérer tous les objets
 app.get('/api/stuff', (req, res, next) => {
-  const stuff = [
-    {
-      _id: 'oeihfzeoi',
-      title: 'Mon premier objet',
-      description: 'Les infos de mon premier objet',
-      imageUrl: 'https://cdn.pixabay.com/photo/2019/06/11/18/56/camera-4267692_1280.jpg',
-      price: 4900,
-      userId: 'qsomihvqios',
-    },
-    {
-      _id: 'oeihfzeomoihi',
-      title: 'Mon deuxième objet',
-      description: 'Les infos de mon deuxième objet',
-      imageUrl: 'https://cdn.pixabay.com/photo/2019/06/11/18/56/camera-4267692_1280.jpg',
-      price: 2900,
-      userId: 'qsomihvqios',
-    },
-  ];
-  res.status(200).json(stuff);
+  Thing.find()
+    .then(things => res.status(200).json(things))
+    .catch(error => res.status(400).json({ error }));
+});
+
+// Route pour créer un nouvel objet
+app.post('/api/stuff', (req, res, next) => {
+  delete req.body._id;
+  const thing = new Thing({
+    ...req.body
+  });
+  thing.save()
+    .then(() => res.status(201).json({ message: 'Objet enregistré !' }))
+    .catch(error => res.status(400).json({ error }));
+});
+
+// Route pour mettre à jour un objet existant
+app.put('/api/stuff/:id', (req, res, next) => {
+  Thing.updateOne({ _id: req.params.id }, { ...req.body, _id: req.params.id })
+    .then(() => res.status(200).json({ message: 'Objet modifié !'}))
+    .catch(error => res.status(400).json({ error }));
+});
+
+// Route pour supprimer un objet
+app.delete('/api/stuff/:id', (req, res, next) => {
+  Thing.deleteOne({ _id: req.params.id })
+    .then(() => res.status(200).json({ message: 'Objet supprimé !'}))
+    .catch(error => res.status(400).json({ error }));
 });
 
 // Export de l'application
 module.exports = app;
-
-
-// Connexion à la base de données MongoDB
-
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://kokou:fcconsulting@cluster0.ibfgfyh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
-  }
-}
-run().catch(console.dir);
